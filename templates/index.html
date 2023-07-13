@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product Checker</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
+</head>
+<body>
+    <div class="container">
+        <h1 align="center">Product Checker</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <label>Select Category</label>
+                <select name="category" data-live-search="true" id="category" class="form-control" title="Select Category">
+                {% for row in categories %}
+                <option value="{{row.id}}">{{row.name}}</option>
+                {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label>Select Product</label>
+                <select name="product" data-live-search="true" id="product" class="form-control" title="Select Product">
+                    {% for row in products %}
+                    <option value={{row.name}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#category").selectpicker();
+            $("#product").selectpicker();
+
+            function load_data(category_id, query) {
+                $.ajax({
+                    url: "/getProducts",
+                    method: "POST",
+                    data: {
+                        category_id: category_id,
+                        query: query
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        alert(category_id)
+                        var html = "";
+                        for (var count = 0; count < data.products.length; count++) {
+                            html += '<option value="' + data.products[count].name + '">' + data.products[count].name + "</option>";
+                        }
+                        $("#product").html(html);
+                        $("#product").selectpicker("refresh");
+                    },
+                });
+            }
+
+            var categorySelected = false;
+              $("#category").change(function () {
+                if (categorySelected) {
+                  clearProductDropdown();
+                } else {
+                  categorySelected = true;
+                }
+              });
+
+              $("#product").on("changed.bs.select", function () {
+                var category_id = $("#category").val();
+                var query = $(this).val();
+
+                if (categorySelected && query.length >= 3) {
+                alert(query);
+                  loadProducts(category_id, query);
+                }
+              });
+
+              function clearProductDropdown() {
+                $("#product").empty();
+                $("#product").selectpicker("refresh");
+              }
+        });
+
+    </script>
+</body>
+</html>

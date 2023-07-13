@@ -1,0 +1,54 @@
+/* CSS for search field */
+body {
+  font-family: Arial;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+form.example input[type=text] {
+  padding: 10px;
+  font-size: 17px;
+  border: 1px solid grey;
+  float: left;
+  width: 80%;
+  background: #f1f1f1;
+  height: 40px;
+}
+
+form.example button {
+  float: left;
+  width: 20%;
+  padding: 10px;
+  background: #2196F3;
+  color: white;
+  font-size: 17px;
+  border: 1px solid grey;
+  border-left: none;
+  cursor: pointer;
+  height: 40px;
+  position: relative; /* Add this line */
+}
+
+form.example button::before {
+  content: "\1F50D"; /* Unicode for magnifying glass symbol */
+  display: inline-block;
+  font-family: "Arial", sans-serif;
+  font-size: 17px;
+  margin-right: 5px;
+  position: absolute; /* Add this line */
+  top: 50%; /* Add this line */
+  left: 50%; /* Add this line */
+  transform: translate(-50%, -50%); /* Add this line */
+}
+
+form.example button:hover {
+  background: #0b7dda;
+}
+
+form.example::after {
+  content: "";
+  clear: both;
+  display: table;
+}
