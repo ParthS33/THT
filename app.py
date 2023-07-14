@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, jsonify, request
 import psycopg2
 import psycopg2.extras
@@ -24,17 +23,13 @@ def main():
 def getProducts():
     category_id = request.form.get('category_id')
     query = request.form.get('query')
-    query = '%'+ query+ '%'
-    try:
-        cur = conn.cursor()
+    query = '%' + query.lower() + '%'
+    with conn.cursor() as cur:
         cur.execute(
-            "SELECT distinct product_name FROM book_reviews where product_name like %s ORDER BY product_name LIMIT 10",
-            (query)
+            "SELECT DISTINCT product_name FROM book_reviews WHERE lower(product_name) LIKE '"+ query +"' ORDER BY product_name LIMIT 10"
         )
         products = [{'id': row[0], 'name': row[0]} for row in cur.fetchall()]
-        cur.close()
-    finally:
-        conn.close()
+        # cur.close()
 
     return jsonify(products=products)
 
