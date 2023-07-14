@@ -19,6 +19,7 @@
   left: 0;
   width: 100%;
 }
+
 </style>
 </head>
 <body>
@@ -28,7 +29,7 @@
         <div class="row">
             <div class="col-md-6">
                 <label>Select Category</label>
-                <select name="category" data-live-search="true" id="category" class="form-control" title="Select Category">
+                <select name="category" data-live-search="true" id="category" class="form-control" title="Select Category" width="50%">
                     {% for row in categories %}
                     <option value="{{row.id}}">{{row.name}}</option>
                     {% endfor %}
@@ -46,30 +47,47 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
     <script>
         $(document).ready(function () {
-            $("#category").selectpicker();
+    var debounceTimer; // Timer variable for debouncing
 
-            // Enable autocomplete for the product input field
-            $('#product').autocomplete({
-                source: function (request, response) {
-                    $.ajax({
-                        url: "/getProducts",
-                        type: "POST",
-                        data: {
-                            category_id: $("#category").val(),
-                            query: request.term
-                        },
-                        success: function (data) {
-                            //alert("Yes");
-                            response(data.products);
+    $("#category").selectpicker();
+
+    // Enable autocomplete for the product input field
+    $('#product').autocomplete({
+        source: function (request, response) {
+            // Clear the previous timer if it exists
+            clearTimeout(debounceTimer);
+
+            // Start a new timer to delay the AJAX request
+            debounceTimer = setTimeout(function () {
+                $.ajax({
+                    url: "/getProducts",
+                    type: "POST",
+                    data: {
+                        category_id: $("#category").val(),
+                        query: request.term
+                    },
+                    success: function (data) {
+                        if (data.products && data.products.length > 0) {
                             response(data.products.map(function (item) {
-        return { label: item.name, value: item.id };
-    }));
+                                return { label: item.name, value: item.id };
+                            }));
+                        } else {
+                            response([{ label: 'No records found', value: null }]);
                         }
-                    });
-                },
-                minLength: 3 // Minimum characters required before triggering autocomplete
-            });
-        });
+                    }
+                });
+            }, 300); // Adjust the debounce delay (in milliseconds) as needed
+        },
+        minLength: 3, // Minimum characters required before triggering autocomplete
+        select: function (event, ui) {
+            // Prevent selection if the label is 'No records found'
+            if (ui.item.label === 'No records found') {
+                return false;
+            }
+        }
+    }).autocomplete("widget").addClass("dropdown-menu");
+});
+
 
     </script>
 </body>
