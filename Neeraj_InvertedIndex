@@ -1,0 +1,147 @@
+import sqlite3
+from collections import defaultdict
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split, GridSearchCV
+from spellchecker import SpellChecker
+import re
+import string
+import nltk
+
+
+import mysql.connector
+
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+def create_connection():
+    conn = mysql.connector.connect(
+        host="localhost",
+        database="mysql",
+        user="root",
+        password="NeerajMySQL47$"
+    )
+    return conn
+
+# Retrieve data from the database excluding stop words
+def get_data_without_sw(conn):
+    cur = conn.cursor()
+    cur.execute("select reviews from project.test_data where reviews is not null")
+    rows = cur.fetchall()
+    return cur, rows
+
+def lemmatization_tokenization(reviews, tokens):
+    lemmatizer = WordNetLemmatizer()
+    count = 0
+    for review in reviews:
+        count += 1
+        tokenized_review = word_tokenize(review)
+        lemmatized_tokens = [lemmatizer.lemmatize(token) for token in tokenized_review]
+        tokens.append(lemmatized_tokens)
+        
+def create_inverted_index(tokens_list):
+    inverted_index = {}  # Initialize the inverted index as an empty dictionary
+    for doc_id, tokens in enumerate(tokens_list):
+        unique_tokens = set(tokens)  # Remove duplicate tokens in each document
+        for token in unique_tokens:
+            if token not in inverted_index:
+                inverted_index[token] = []
+            inverted_index[token].append(doc_id)
+    return inverted_index
+        
+
+def vectorization_tfidf(documents):
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(documents)
+    feature_names = vectorizer.get_feature_names()
+
+    # Create an inverted index mapping tokens to document IDs
+    inverted_index = defaultdict(list)
+    for doc_id, doc_tokens in enumerate(documents):
+        for token in doc_tokens.split():
+            inverted_index[token].append(doc_id)
+
+    return vectorizer, tfidf_matrix, feature_names, inverted_index
+
+def logistic_regression_training(X, y):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Perform hyperparameter tuning
+    param_grid = {'C': [0.1, 1, 10]}
+    grid_search = GridSearchCV(LogisticRegression(max_iter=10000), param_grid, cv=5, n_jobs=-1)
+    grid_search.fit(X_train, y_train)
+
+    # Get the best model from the hyperparameter tuning
+    best_model = grid_search.best_estimator_
+
+    # Make predictions on the testing set
+    y_pred = best_model.predict(X_test)
+    # Evaluate the model
+    accuracy = accuracy_score(y_test, y_pred)
+    print("Accuracy: ", accuracy)
+    return best_model
+
+def spell_check(review):
+    spell = SpellChecker()
+    review = re.sub(r'\.', ' . ', review)
+    tokens = review.lower().split()
+    corrected_tokens = [spell.correction(token) if spell.correction(token) is not None else token for token in tokens]
+    return ' '.join(corrected_tokens)
+
+def clean_text(review):
+    spell_checked_review = spell_check(review)
+    review_without_numbers = re.sub(r'\d+', ' ', spell_checked_review)
+    review_without_punctuation = ''.join(char if char not in string.punctuation else ' ' for char in review_without_numbers)
+    review_without_special_char = re.sub(r'[^\w\s]', ' ', review_without_punctuation)
+    final_review = re.sub(r'\s+', ' ', review_without_special_char).strip()
+    return final_review
+
+def training(reviews, rows):
+    tokens = []
+    lemmatization_tokenization(reviews, tokens)
+    documents = [' '.join(tokens) for tokens in tokens]
+    vectorizer, tfidf_matrix, feature_names, inverted_index = vectorization_tfidf(documents)
+    sentiment_labels = [row[0] for row in rows]
+
+    model = logistic_regression_training(tfidf_matrix, sentiment_labels)
+    return model, vectorizer, feature_names, inverted_index
+
+def testing(test_review, model, vectorizer):
+    tokens = []
+    cleaned_review = clean_text(test_review)
+    lemmatization_tokenization([cleaned_review], tokens)
+    documents = [' '.join(tokens) for tokens in tokens]
+    test_tfidf_vector = vectorizer.transform(documents)
+    predicted_probabilities = model.predict_proba(test_tfidf_vector)[0]
+
+    return predicted_probabilities
+
+def main():
+    conn = create_connection()
+    cur, rows = get_data_without_sw(conn)
+    reviews = [row[0] for row in rows]
+    
+    tokens_list = []
+    lemmatization_tokenization(reviews, tokens_list)
+
+    inverted_index = create_inverted_index(tokens_list)
+
+    model, vectorizer, feature_names, inverted_index = training(reviews, rows)
+
+    test_review = "i love the battery life"
+    predicted_probabilities = testing(test_review, model, vectorizer)
+
+    print("Test Review:", test_review)
+    print("Probability of Negative Sentiment:", predicted_probabilities[0])
+    print("Probability of Positive Sentiment:", predicted_probabilities[1])
+
+    cur.close()
+    conn.close()
+
+if __name__ == '__main__':
+    main()
