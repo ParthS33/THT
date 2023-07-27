@@ -1,0 +1,85 @@
+import os
+import re
+from collections import defaultdict
+from nltk.stem import PorterStemmer
+import mysql.connector
+
+class Parser:
+    def __init__(self, conn):
+        self.inverted_index = defaultdict(list)
+        self.conn = conn
+
+    def create_inverted_index(self, content):
+        stemmer = PorterStemmer()
+        tokens = re.findall(r'\w+', content)
+
+        for token in tokens:
+            stemmed_token = stemmer.stem(token)
+            if not self.is_stop_word(stemmed_token):
+                self.inverted_index[stemmed_token].append(content)
+
+    def is_stop_word(self, token):
+        stop_list = {"a", "is", "in", "so", "of", "at", "the", "to", "an", "and", "it", "as", "be", "are"}
+        return token in stop_list
+
+    def search_single_keyword(self, keyword):
+        stemmer = PorterStemmer()
+        stemmed_keyword = stemmer.stem(keyword)
+        return self.inverted_index.get(stemmed_keyword, [])
+    
+    def search_multiple_keywords_and(self, keywords):
+        stemmer = PorterStemmer()
+        stemmed_keywords = [stemmer.stem(keyword) for keyword in keywords]
+
+        # Find the intersection of reviews containing each keyword
+        result = set(self.inverted_index.get(stemmed_keywords[0], []))
+        for keyword in stemmed_keywords[1:]:
+            result = result.intersection(self.inverted_index.get(keyword, []))
+
+        return list(result)
+
+    # Other search methods...
+
+    def build_inverted_index(self):
+        cur, rows = get_data_without_sw(self.conn)
+
+        for content in rows:
+            self.create_inverted_index(content[0].lower())
+
+# Retrieve data from the database excluding stop words
+def get_data_without_sw(conn):
+    cur = conn.cursor()
+    cur.execute("select reviews from project.test_data where reviews is not null")
+    rows = cur.fetchall()
+    return cur, rows
+
+# Connect to the database
+def create_connection():
+    conn = mysql.connector.connect(
+        host="localhost",
+        database="mysql",
+        user="root",
+        password="NeerajMySQL47$"
+    )
+    return conn
+
+# Test the Parser class
+if __name__ == "__main__":
+    conn = create_connection()
+    parser = Parser(conn)
+    parser.build_inverted_index()
+
+    # Test the search methods here...
+    # Example: Search for reviews containing the word "good"
+#     keyword = "good"
+#     result = parser.search_single_keyword(keyword)
+#     print(f"Reviews containing the word '{keyword}':")
+#     for review in result:
+#         #print(review)
+        
+        
+    keywords = ["I", "love"]
+    result = parser.search_multiple_keywords_and(keywords)
+    print(f"Reviews containing the words '{', '.join(keywords)}':")
+    for review in result:
+        print(review)    
