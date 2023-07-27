@@ -1,6 +1,6 @@
 import psycopg2
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import time
+import csv
 
 def create_connection():
 
@@ -12,7 +12,6 @@ def create_connection():
     )
     print("Connection created")
     return conn
-
 def get_data_without_sw(conn):
 
     curs = conn.cursor()
@@ -20,7 +19,7 @@ def get_data_without_sw(conn):
                  "from temp.newphones "
                  "group by productname "
                  "order by count(*) desc "
-                 "limit 2;",)
+                 "limit 50;",)
     products = curs.fetchall()
     curs.close()
     print("Fetched product names")
@@ -44,7 +43,6 @@ def testing(test_review, model):
     analyzer = model
     scores = analyzer.polarity_scores(test_review)
 
-    # Interpret the sentiment scores to get the predicted label
     if scores['compound'] >= 0.05:
         predicted_label = 'Positive'
     elif scores['compound'] <= -0.05:
@@ -69,7 +67,6 @@ def perform_sentiment_analysis(rows):
 
 def insert_into_product_reviews(conn, category, productName, review, sentiment, compoundScore, positivePercent, negativePercent):
     cur = conn.cursor()
-    # insert values into the table temp.productreviews
     cur.execute("INSERT INTO temp.ProductReviews "
                 "(category, productName, review, predictedSentiment, score, positivePercent, negativePercent) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s)",
@@ -87,6 +84,7 @@ def get_top_reviews(sorted_reviews, product_name, conn):
     negative_percent = no_of_negative*100/total
     print("Positive % = ", positive_percent)
     print("Negative % = ", negative_percent)
+    print()
     print("Top 5 Positive Reviews:")
     for idx, review in enumerate(positive_reviews[:5], 1):
         print(f"{idx}. Compound Score: {review[1][2]}")
@@ -104,7 +102,7 @@ def get_top_reviews(sorted_reviews, product_name, conn):
         insert_into_product_reviews(conn, 'Phone', product_name, review[1][1], 'Negative', review[1][2], positive_percent, negative_percent)
 
     print("Inserted values into the table ProductReviews")
-    print()
+    print("----------------------------------------------------------------------------")
 
 
 
@@ -132,14 +130,30 @@ def create_product_reviews_table(conn):
     conn.commit()
     print("Created the table ProductReviews")
 
+def export_to_csv(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM temp.ProductReviews")
+    rows = cur.fetchall()
+    cur.close()
+
+    with open("product_reviews.csv", "w", newline="", encoding="utf-8") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(["category", "productName", "review", "predictedSentiment", "score", "positivePercent", "negativePercent"])
+        csvwriter.writerows(rows)
+
+
+    print("Data exported to product_reviews.csv")
+
+
 def main():
     conn = create_connection()
     products = get_data_without_sw(conn)
     create_product_reviews_table(conn)
+    print("----------------------------------------------------------------------------")
     for product_name in products:
         predict_for_all_products(product_name[0], conn)
 
-
+    export_to_csv(conn)
 
 
 if __name__ == '__main__':
