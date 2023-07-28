@@ -3,21 +3,19 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import csv
 
 def create_connection():
-
-    conn = psycopg2.connect(
-        host="localhost",
-        database="TheHighTable",
-        user="postgres",
-        password="RITPostGreSQL"
-    )
+    conn = psycopg2.connect(user="postgres",
+                            password="shipsure",
+                            host="127.0.0.1",
+                            port="5432",
+                            database="postgres")
     print("Connection created")
     return conn
 def get_data_without_sw(conn):
 
     curs = conn.cursor()
-    curs.execute("select productname "
-                 "from temp.newphones "
-                 "group by productname "
+    curs.execute("select product_name "
+                 "from book_reviews "
+                 "group by product_name "
                  "order by count(*) desc "
                  "limit 50;",)
     products = curs.fetchall()
@@ -27,11 +25,11 @@ def get_data_without_sw(conn):
 
 def get_data_for_each_product(conn, product_name):
     cur = conn.cursor()
-    cur.execute("select ratings, reviews, id, productname "
-                "from temp.newphones "
-                "where reviews is not null and "
-                "ratings is not null "
-                "and productname = %s ", (product_name, ))
+    cur.execute("select rating, review, ROW_NUMBER() OVER () AS id, product_name "
+                "from book_reviews "
+                "where review is not null and "
+                "rating is not null "
+                "and product_name = %s ", (product_name, ))
     rows = cur.fetchall()
     print(f"Fetched data for the product {product_name}")
     return cur, rows
@@ -67,7 +65,7 @@ def perform_sentiment_analysis(rows):
 
 def insert_into_product_reviews(conn, category, productName, review, sentiment, compoundScore, positivePercent, negativePercent):
     cur = conn.cursor()
-    cur.execute("INSERT INTO temp.ProductReviews "
+    cur.execute("INSERT INTO ProductReviews "
                 "(category, productName, review, predictedSentiment, score, positivePercent, negativePercent) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (category, productName, review, sentiment, compoundScore, positivePercent, negativePercent))
@@ -91,7 +89,7 @@ def get_top_reviews(sorted_reviews, product_name, conn):
         print(f"   Review: {review[1][1]}")
         print()
         # print(review)
-        insert_into_product_reviews(conn, 'Phone', product_name, review[1][1], 'Positive', review[1][2], positive_percent, negative_percent)
+        insert_into_product_reviews(conn, 'Books', product_name, review[1][1], 'Positive', review[1][2], positive_percent, negative_percent)
 
     # Printing the top 5 negative reviews
     print("Top 5 Negative Reviews:")
@@ -99,7 +97,7 @@ def get_top_reviews(sorted_reviews, product_name, conn):
         print(f"{idx}. Compound Score: {review[1][2]}")
         print(f"   Review: {review[1][1]}")
         print()
-        insert_into_product_reviews(conn, 'Phone', product_name, review[1][1], 'Negative', review[1][2], positive_percent, negative_percent)
+        insert_into_product_reviews(conn, 'Books', product_name, review[1][1], 'Negative', review[1][2], positive_percent, negative_percent)
 
     print("Inserted values into the table ProductReviews")
     print("----------------------------------------------------------------------------")
@@ -117,8 +115,8 @@ def predict_for_all_products(product_name, conn):
 
 def create_product_reviews_table(conn):
     cur = conn.cursor()
-    cur.execute("drop table if exists temp.ProductReviews")
-    cur.execute("create table temp.ProductReviews( "
+    cur.execute("drop table if exists ProductReviews")
+    cur.execute("create table ProductReviews( "
                 "category text, "
                 "productName text, "
                 "review text, "
@@ -126,13 +124,13 @@ def create_product_reviews_table(conn):
                 "score numeric, "
                 "positivePercent numeric, "
                 "negativePercent numeric)")
-    cur.execute("select * from temp.ProductReviews")
+    cur.execute("select * from ProductReviews")
     conn.commit()
     print("Created the table ProductReviews")
 
 def export_to_csv(conn):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM temp.ProductReviews")
+    cur.execute("SELECT * FROM ProductReviews")
     rows = cur.fetchall()
     cur.close()
 

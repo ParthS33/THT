@@ -1,94 +1,136 @@
-<!DOCTYPE html>
 <html>
-<head>
-    <title>Product Checker</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
-    <style>
-    /* Custom CSS for autocomplete dropdown */
-.ui-autocomplete {
-  max-height: 200px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  z-index: 1000;
-}
+<html>
+    <head>
+        <title>Product Checker</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
 
-.ui-autocomplete.ui-widget-content {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-}
-
-</style>
-</head>
-<body>
-
-    <div class="container">
-        <h1 align="center">Product Checker</h1>
-        <div class="row">
-            <div class="col-md-6">
-                <label>Select Category</label>
-                <select name="category" data-live-search="true" id="category" class="form-control" title="Select Category" width="50%">
+    </head>
+    <body>
+        <div class="container">
+            <h1 align="center">Product Checker</h1>
+            <div class="row">
+                <div class="col-md-2">
+                    <label>Select Category</label>
+                    <select name="categories" data-live-search="true" id="categories" class="form-control" title="Select Category">
                     {% for row in categories %}
                     <option value="{{row.id}}">{{row.name}}</option>
                     {% endfor %}
-                </select>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label>Select Product</label>
+                    <select name="products" data-live-search="true" id="products" class="form-control" title="Select Product">
+                        {% for row in products %}
+                        {% set truncated_name = row.name[:15] + '...' if row.name|length > 15 else row.name %}
+                        <option value="{{ row.id }}" title="{{ row.name }}">{{ truncated_name }}</option>
+                        {% endfor %}
+                    </select>
+
+                </div>
+                <div class="col-md-2">
+                    <br/>
+                    <button class="btn btn-default" id="searchButton">Search</button>
+                </div>
             </div>
-            <div class="col-md-6">
-                <label>Select Product</label>
-                <input type="text" name="product" id="product" class="form-control" placeholder="Select Product" autocomplete="on">
+            <div class="row emoji-container" >
+                <div class="col-md-6">
+                    <h2>Public Sentiment</h2>
+                    <p><span class="emoji" id="happyEmoji"></span>  <span class="emoji" id="sadEmoji"></span></p>
+                </div>
             </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h2>Top 5 Positive Reviews</h2>
+            <table class="table table-striped" id="table1">
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <h2>Top 5 Negative Reviews</h2>
+            <table class="table table-striped" id="table2">
+                <tbody>
+                </tbody>
+            </table>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
-    <script>
+
+
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+        <script>
         $(document).ready(function () {
-    var debounceTimer; // Timer variable for debouncing
+            $("#categories").selectpicker();
+            $("#products").selectpicker();
 
-    $("#category").selectpicker();
+            $("#categories").change(function () {
+                // Get the selected category ID
+                var selectedCategoryId = $(this).val();
 
-    // Enable autocomplete for the product input field
-    $('#product').autocomplete({
-        source: function (request, response) {
-            // Clear the previous timer if it exists
-            clearTimeout(debounceTimer);
-
-            // Start a new timer to delay the AJAX request
-            debounceTimer = setTimeout(function () {
                 $.ajax({
                     url: "/getProducts",
-                    type: "POST",
-                    data: {
-                        category_id: $("#category").val(),
-                        query: request.term
-                    },
-                    success: function (data) {
-                        if (data.products && data.products.length > 0) {
-                            response(data.products.map(function (item) {
-                                return { label: item.name, value: item.id };
-                            }));
-                        } else {
-                            response([{ label: 'No records found', value: null }]);
+                    method: "POST",
+                    data: { category_id: selectedCategoryId },
+                    dataType: "json",
+                    success: function (response) {
+                        $("#products").empty();
+
+                        for (var i = 0; i < response.products.length; i++) {
+                            var product = response.products[i];
+                            $("#products").append('<option value="' + product.id + '">' + product.name + '</option>');
                         }
+
+                        $("#products").selectpicker("refresh");
+                    },
+                    error: function (error) {
+                        console.log("Error fetching products:", error);
                     }
                 });
-            }, 300); // Adjust the debounce delay (in milliseconds) as needed
-        },
-        minLength: 3, // Minimum characters required before triggering autocomplete
-        select: function (event, ui) {
-            // Prevent selection if the label is 'No records found'
-            if (ui.item.label === 'No records found') {
-                return false;
+            });
+    function updateEmojiAndTables() {
+
+        var selectedProduct = $("#products option:selected").text();
+        var selectedCategoryId = $("#categories option:selected").val();
+        $.ajax({
+            url: "/searchData",
+            method: "POST",
+            data: { product_name: selectedProduct , category_id: selectedCategoryId},// why doesnt this work
+            dataType: "json",
+            success: function (response) {
+                $("#happyEmoji").text("👍: " + response.happy_number);
+                $("#sadEmoji").text("👎: " + response.sad_number);
+
+                updateTable($("#table1 tbody"), response.table1_data);
+                updateTable($("#table2 tbody"), response.table2_data);
+            },
+            error: function (error) {
+                console.log("Error fetching data:", error);
             }
+        });
+    }
+
+    function updateTable(tableBody, data) {
+        tableBody.empty();
+
+        function addRowsToTable(tableBody, row) {
+            var rowHtml = '<tr><td>' + row['Review'] + '</td></tr>';
+            tableBody.append(rowHtml);
         }
-    }).autocomplete("widget").addClass("dropdown-menu");
-});
+        for (var i = 0; i < data.length; i++) {
+            var row = data[i];
+            addRowsToTable(tableBody, row);
+        }
+    }
 
+            $("#searchButton").click(function () {updateEmojiAndTables();
+        }
+        );
 
+        });
     </script>
-</body>
+    </body>
 </html>
