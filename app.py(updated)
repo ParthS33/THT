@@ -1,0 +1,55 @@
+from flask import Flask, render_template, jsonify, request
+import psycopg2
+import psycopg2.extras
+
+app = Flask(__name__)
+
+conn = psycopg2.connect(user="postgres",
+                        password="cAa6nYr4",
+                        host="127.0.0.1",
+                        port="5432",
+                        database="Sephora_dataset")
+
+
+@app.route('/')
+def main():
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute("SELECT * FROM temp.sephora_dataset ORDER BY id")
+    categories = cur.fetchall()
+    return render_template('index.html', categories=categories)
+
+
+@app.route("/getProducts", methods=["POST"])
+def getProducts():
+    id = request.form.get('id')
+    query = request.form.get('query')
+    query = '%' + query.lower() + '%'
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT DISTINCT concatenated_product_name FROM temp.sephora_dataset WHERE id = %s AND lower(concatenated_product_name) LIKE %s ORDER BY concatenated_product_name LIMIT 10;",
+            (id, query),
+        )
+        products = [row[0] for row in cur.fetchall()]
+
+    return jsonify(products=products)
+
+
+@app.route("/getTopProducts", methods=["POST"])
+def getTopProducts():
+    id = request.form.get('id')
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT concatenated_product_name FROM temp.sephora_dataset "
+            "GROUP BY concatenated_product_name "
+            "HAVING COUNT(CASE WHEN clean_review_text IS NOT NULL OR clean_review_title IS NOT NULL THEN 1 END) > 5 "
+            "AND AVG(rating) = 5 "
+            "LIMIT 10;",
+            (id,),
+        )
+        top_products = [row[0] for row in cur.fetchall()]
+
+    return jsonify(products=top_products)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
