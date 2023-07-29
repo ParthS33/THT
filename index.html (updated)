@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PRODUCT✓ER</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
+    <style>
+        /* Custom CSS for autocomplete dropdown */
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+        }
+
+        .ui-autocomplete.ui-widget-content {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+        }
+
+        .spacer {
+            margin-top: 2rem; /* Adjust the margin-top as needed to add space */
+        }
+
+        .emoji-container {
+            font-size: 30px;
+            color: green;
+            text-align: center;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .top-reviews-label {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .more-details-btn {
+            display: block;
+            width: 150px;
+            margin: 0 auto;
+            margin-top: 3rem;
+        }
+
+        .header {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .footer {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .container {
+            margin-top: 2rem;
+            margin-bottom: 6rem; /* Adjust the margin-bottom as needed to add space for the footer */
+            position: relative;
+        }
+
+        .form-control {
+            border-radius: 0; /* Remove the default border radius for input elements */
+        }
+
+        .btn {
+            border-radius: 0; /* Remove the default border radius for buttons */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PRODUCT✓ER</h1>
+    </div>
+    <div class="container">
+        <div class="spacer"></div>
+        <div class="row">
+            <div class="col-md-6">
+                <label>Select Category</label>
+                <div class="input-group">
+                    <select name="category" data-live-search="true" id="category" class="form-control" title="Select Category" width="50%">
+                        <option value="1">Phones</option>
+                        <option value="2">Phone accessories</option>
+                        <option value="3">Skin and beauty products</option>
+                        <option value="4">Books</option>
+                    </select>
+                    <span class="input-group-btn">
+                        <button class="btn btn-default" type="button" id="category-search-btn">Find</button>
+                    </span>
+                </div>
+                <div class="spacer"></div>
+                <div class="emoji-container" id="emoji-container" style="display: none;">
+                    <div>😊</div>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    <div>😞</div>
+                </div>
+                <div class="spacer" id="emoji-gap"></div>
+                <h4 class="top-reviews-label" id="top-reviews-label" style="display: none;">Review Search Category</h4>
+                <div class="input-group" id="review-search-group" style="display: none;">
+                    <input type="text" class="form-control" placeholder="Search Category">
+                    <span class="input-group-btn">
+                        <button class="btn btn-default" type="button" id="search-btn">Search</button>
+                    </span>
+                </div>
+                <div class="spacer" id="top-reviews-gap"></div>
+                <div class="top-reviews-label" id="top-reviews-label-result" style="display: none;"></div>
+                <div class="spacer"></div>
+            </div>
+            <div class="col-md-6">
+    <label>Select Product</label>
+    <div class="input-group">
+        <input type="text" name="product" id="product" class="form-control" placeholder="Select Product" autocomplete="off">
+        <span class="input-group-btn">
+            <button class="btn btn-primary" type="button" id="get-review-btn">Get Review</button>
+        </span>
+    </div>
+    <div class="spacer"></div>
+    <div class="suggestions" id="product-suggestions" style="display: none;"></div>
+</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="row">
+            <div class="col-md-12">
+{#                <h4 class="top-reviews-label" id="top-reviews-label-result" style="display: none;">Top 10 Products</h4>#}
+                <div class="container" id="container" style="display: none;">
+                    <table id="top-products-table">
+                        <thead>
+                            <tr>
+                                <th>Top 10 Products</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="spacer"></div>
+            </div>
+                    <div class="col-md-6">
+                </div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-primary more-details-btn" type="button">More Details</button>
+    </div>
+    <div class="footer">
+        <p>&copy; 2023 PRODUCT✓ER.</p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#category").selectpicker();
+
+    // Enable autocomplete for the product input field
+         $('#product').on('keyup', function () {
+        var query = $(this).val();
+        var id = $("#category").val();
+
+        clearTimeout(searchTimeout); // Clear previous search timeout
+
+        // Set a new search timeout to avoid rapid requests
+        searchTimeout = setTimeout(function () {
+            $.ajax({
+                url: "/getProducts",
+                type: "POST",
+                data: {
+                    id: id,
+                    query: query
+                },
+                success: function (data) {
+                    var suggestionsDiv = $("#product-suggestions");
+                    suggestionsDiv.empty(); // Clear previous suggestions
+                    suggestionsDiv.hide(); // Hide the suggestions div initially
+
+                    // Display up to 5 suggestions in the suggestions div
+                    for (var i = 0; i < Math.min(data.products.length, 5); i++) {
+                        var suggestion = $("<div>").text(data.products[i]);
+                        suggestionsDiv.append(suggestion);
+                    }
+
+                    // Show the suggestions div if there are suggestions
+                    if (data.products.length > 0) {
+                        suggestionsDiv.show();
+                    }
+                }
+            });
+        }, searchDelay);
+    });
+
+    // Hide suggestions when clicking outside the input field
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest("#product-suggestions").length) {
+            $("#product-suggestions").hide();
+        }
+    });
+
+    // Set the selected suggestion when clicking on a suggestion
+    $(document).on('click', '#product-suggestions div', function () {
+        $("#product").val($(this).text());
+        $("#product-suggestions").hide();
+    });
+
+            $("#get-review-btn").on('click', function () {
+                $("#emoji-container").toggle();
+                $("#top-reviews-label").toggle();
+                $("#review-search-group").toggle();
+                $("#emoji-gap").toggle();
+                $("#top-reviews-gap").toggle();
+                {#var reviewLabelContent = $("#top-reviews-label-result").text();#}
+                {#var emojiContent = $("#emoji-container").html();#}
+                {#var reviewSearchContent = $("#review-search-group").html();#}
+                $("#top-reviews-label-result").text(""); // Clear the "Top 10 Products" label
+                $("#container").hide(); // Hide the table container
+
+            {#   // Open the content in a new window#}
+            {#var newWindow = window.open('', 'ReviewWindow');#}
+            {#newWindow.document.write("<h4>" + reviewLabelContent + "</h4>");#}
+            {#newWindow.document.write("<div class='emoji-container'>" + emojiContent + "</div>");#}
+            {#newWindow.document.write("<div class='input-group'>" + reviewSearchContent + "</div>");#}
+        });
+
+
+            $("#category-search-btn").on('click', function () {
+                var selectedCategory = $("#category option:selected").text();
+                if (selectedCategory === "Skin and beauty products") {
+                    $("#top-reviews-label-result").text("Top 10 Products").show();
+                    $("#container").show(); // Show the table container
+
+                    // AJAX call to fetch the SQL query results
+                    $.ajax({
+    url: "/getTopProducts",
+    type: "POST",
+    data: {
+        id: $("#category").val()
+    },
+    success: function (data) {
+        // Populate the table with the query results
+        var tableBody = $("#top-products-table tbody");
+        tableBody.empty(); // Clear previous data
+
+        for (var i = 0; i < data.products.length; i++) {
+            var productName = data.products[i];
+            var row = $("<tr>").append($("<td>").text(productName));
+            tableBody.append(row);
+        }
+    }
+});
+                } else {
+                    $("#top-reviews-label-result").text("Please Select Category").show();
+                    $("#container").hide(); // Hide the table container
+                }
+            });
+
+            $("#search-btn").on('click', function () {
+                $("#top-reviews-label-result").text("Top 10 Reviews").show();
+                $("#container").hide(); // Hide the table container
+
+                // Open the content in a new window
+            var content = $("#top-reviews-label-result").text();
+            window.open('', 'ReviewWindow').document.write(content);
+        });
+
+        $(".more-details-btn").on('click', function () {
+            // Open the "More Details" window
+            window.open('', 'MoreDetailsWindow').document.write("Here are more details");
+            });
+        });
+    </script>
+</body>
+</html>
