@@ -27,7 +27,7 @@ def main():
 def getProducts():
     category_id = int(request.form.get('category_id'))
     if category_id == 1:
-        category ="Phones"
+        category ="Phone"
     elif category_id == 2:
         category ="Books"
     elif category_id == 3:
@@ -49,7 +49,7 @@ def searchData():
     product_name = request.form.get('product_name')
     category_id = int(request.form.get('category_id'))
     if category_id == 1:
-        category = "Phones"
+        category = "Phone"
     elif category_id == 2:
         category = "Books"
     elif category_id == 3:
@@ -60,7 +60,7 @@ def searchData():
     # product_name.replace(,)
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     query = "SELECT review, predictedsentiment, positivepercent, negativepercent FROM productreviews WHERE productname = %s AND category = %s ORDER BY 1"
-    print(query)
+    # print(query)
     cur.execute(query, (product_name, category))
     rows = cur.fetchall()
     # print(rows)
@@ -73,7 +73,7 @@ def searchData():
             table2_data.append({'Review':" \""+item[0]+"\""})
 
     happy_number = round(rows[0][2], 2)
-    sad_number = 100 - happy_number
+    sad_number = round(rows[0][3], 2)
 
     return jsonify(happy_number=happy_number, sad_number=sad_number, table1_data=table1_data, table2_data=table2_data)
 

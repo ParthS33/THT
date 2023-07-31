@@ -4,7 +4,18 @@
         <title>Product Checker</title>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
+        <style>
+            .bootstrap-select.btn-group .dropdown-toggle .filter-option {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 400px; /* Adjust this value as needed */
+            }
 
+            .bs-container .open .dropdown-menu {
+                max-width: 200px; /* Set the desired width for the open dropdown */
+            }
+        </style>
     </head>
     <body>
         <div class="container">
@@ -35,8 +46,12 @@
             </div>
             <div class="row emoji-container" >
                 <div class="col-md-6">
-                    <h2>Public Sentiment</h2>
-                    <p><span class="emoji" id="happyEmoji"></span>  <span class="emoji" id="sadEmoji"></span></p>
+                    <h2>Public Sentiment
+<!--                    </h2>-->
+<!--                    <p>-->
+                        <span class="emoji" id="happyEmoji"></span>  <span class="emoji" id="sadEmoji"></span>
+<!--                        </p>-->
+                    </h2>
                 </div>
             </div>
 
@@ -64,6 +79,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
         <script>
         $(document).ready(function () {
+            $('[data-toggle="tooltip"]').tooltip();
             $("#categories").selectpicker();
             $("#products").selectpicker();
 
@@ -117,8 +133,16 @@
         tableBody.empty();
 
         function addRowsToTable(tableBody, row) {
-            var rowHtml = '<tr><td>' + row['Review'] + '</td></tr>';
+            var reviewText = row['Review'];
+            var rowHtml = '<tr><td data-toggle="tooltip" data-placement="top" title="' + reviewText + '">' + ellipsizedText(reviewText) + '</td></tr>';
             tableBody.append(rowHtml);
+        }
+
+        function ellipsizedText(text, maxLength = 200) {
+            if (text.length > maxLength) {
+                return text.substring(0, maxLength - 3) + '...';
+            }
+            return text;
         }
         for (var i = 0; i < data.length; i++) {
             var row = data[i];
