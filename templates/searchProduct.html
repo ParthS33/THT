@@ -1,0 +1,192 @@
+<html>
+<html>
+    <head>
+        <title>Product Checker</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/css/bootstrap-select.min.css" />
+        <style>
+        .review-text {
+            max-height: 300px;
+            overflow: hidden;
+        }
+        .show-more-btn,
+        .show-less-btn {
+            display: none;
+        }
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 align="center">Product Checker</h1>
+            <div class="row">
+                <div class="col-md-2">
+                    <label>Select Category</label>
+                    <select name="categories" data-live-search="true" id="categories" class="form-control" title="Select Category">
+                    {% for row in categories %}
+                    <option value="{{row.id}}">{{row.name}}</option>
+                    {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label>Select Product</label>
+                    <select name="products" data-live-search="true" id="products" class="form-control" title="Select Product">
+                        {% for row in products %}
+                        {% set truncated_name = row.name[:15] + '...' if row.name|length > 15 else row.name %}
+                        <option value="{{ row.id }}" title="{{ row.name }}">{{ truncated_name }}</option>
+                        {% endfor %}
+                    </select>
+
+                </div>
+                <div class="col-md-2">
+                    <br/>
+                    <button id="searchButton">Search</button>
+                </div>
+            </div>
+            <div class="row emoji-container" id ="emojicontainer" style="display: none;">
+                <div class="col-md-6">
+                    <h2>Public Sentiment
+                        <span class="emoji" id="happyEmoji"></span>  <span class="emoji" id="sadEmoji"></span>
+                    </h2>
+                </div>
+            </div>
+
+    <div class="row" id ="tablescontainer" style="display: none;">
+        <div class="col-md-6">
+            <h2>Top 5 Positive Reviews</h2>
+            <table class="table table-striped" id="table1">
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <h2>Top 5 Negative Reviews</h2>
+            <table class="table table-striped" id="table2">
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+        <div class="row" id="searchBoxRow" style="display: none;">
+            <div class="col-md-12">
+                <h2>Search Reviews</h2>
+                <form id="reviewSearchForm">
+                    <input type="text" name="review_search" id="reviewSearchInput" placeholder="Search Reviews" size="50">
+
+                </form>
+                <button id = "submitSearchReview">Search</button>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <table class="table table-striped" id="table3">
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.2/js/bootstrap-select.min.js"></script>
+        <script>
+        $(document).ready(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+            $("#categories").selectpicker();
+            $("#products").selectpicker();
+
+            $("#categories").change(function () {
+                // Get the selected category ID
+                var selectedCategoryId = $(this).val();
+
+                $.ajax({
+                    url: "/getProducts",
+                    method: "POST",
+                    data: { category_id: selectedCategoryId },
+                    dataType: "json",
+                    success: function (response) {
+                        $("#products").empty();
+
+                        for (var i = 0; i < response.products.length; i++) {
+                            var product = response.products[i];
+                            $("#products").append('<option value="' + product.id + '">' + product.name + '</option>');
+                        }
+
+                        $("#products").selectpicker("refresh");
+                    },
+                    error: function (error) {
+                        console.log("Error fetching products:", error);
+                    }
+                });
+            });
+    function updateReviewTable(){
+    var reviewToSearch = $("#reviewSearchInput").val();
+        $.ajax({
+            url: "/searchReviews",
+            method: "POST",
+            data: { product_name: reviewToSearch},
+            dataType: "json",
+            success: function (response) {
+                updateTable($("#table3 tbody"), response.table3_data);
+            },
+            error: function (error) {
+                console.log("Error fetching data:", error);
+            }
+        });
+    }
+    function updateEmojiAndTables() {
+
+        var selectedProduct = $("#products option:selected").val();
+        var selectedCategoryId = $("#categories option:selected").val();
+        $.ajax({
+            url: "/searchData",
+            method: "POST",
+            data: { product_name: selectedProduct , category_id: selectedCategoryId},// why doesnt this work
+            dataType: "json",
+            success: function (response) {
+                $("#happyEmoji").text("👍: " + response.happy_number);
+                $("#sadEmoji").text("👎: " + response.sad_number);
+                $("#reviewSearchInput").val('');
+                updateTable($("#table1 tbody"), response.table1_data);
+                updateTable($("#table2 tbody"), response.table2_data);
+
+                $("#emojicontainer").show();
+                $("#tablescontainer").show();
+                $("#searchBoxRow").show();
+            },
+            error: function (error) {
+                console.log("Error fetching data:", error);
+            }
+        });
+    }
+        function updateTable(tableBody, data) {
+        tableBody.empty();
+
+        function addRowsToTable(tableBody, row) {
+            var reviewText = row['Review'];
+            var rowHtml = '<tr><td data-toggle="tooltip" data-placement="top" title="' + reviewText + '">' + ellipsizedText(reviewText) + '</td></tr>';
+            tableBody.append(rowHtml);
+        }
+
+        function ellipsizedText(text, maxLength = 400) {
+            if (text.length > maxLength) {
+                return text.substring(0, maxLength - 3) + '..."';
+            }
+            return text;
+        }
+        for (var i = 0; i < data.length; i++) {
+            var row = data[i];
+            addRowsToTable(tableBody, row);
+        }
+    }
+    $("#searchButton").click(function () {updateEmojiAndTables();
+        }
+        );
+        $("#submitSearchReview").click(function () {updateReviewTable();
+        }
+        );
+
+        });
+    </script>
+    </body>
+</html>
